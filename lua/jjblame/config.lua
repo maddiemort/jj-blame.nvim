@@ -3,9 +3,7 @@ local M = {}
 ---@type SetupOptions
 M.default_opts = {
     enabled = true,
-    date_format = "%c",
-    message_template = "  <author> • <date> • <summary>",
-    message_when_not_committed = "  Not Committed Yet",
+    template = 'jjblame_default_template()',
     highlight_group = "Comment",
     set_extmark_options = {},
     display_virtual_text = true,
@@ -16,7 +14,7 @@ M.default_opts = {
     schedule_event = "CursorMoved",
     clear_event = "CursorMovedI",
     clipboard_register = "+",
-    max_commit_summary_length = 0,
+    max_commit_description_length = 0,
     remote_domains = {
         ["git.sr.ht"] = "sourcehut",
         ["dev.azure.com"] = "azure",
@@ -27,16 +25,16 @@ M.default_opts = {
 
 ---@param opts SetupOptions?
 M.setup = function(opts)
-    local opts = opts or {}
+    opts = opts or {}
 
     local global_var_opts = {}
     for k, _ in pairs(M.default_opts) do
-        global_var_opts[k] = vim.g["gitblame_" .. k]
+        global_var_opts[k] = vim.g["jjblame_" .. k]
     end
 
     opts = vim.tbl_deep_extend("force", M.default_opts, global_var_opts, opts)
     for k, v in pairs(opts) do
-        vim.g["gitblame_" .. k] = v
+        vim.g["jjblame_" .. k] = v
     end
 end
 

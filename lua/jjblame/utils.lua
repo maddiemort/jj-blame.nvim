@@ -85,7 +85,7 @@ end
 --@return number of tabs and tabstop in string
 function M.get_tabs_len_in_string(s)
     local _, tab_count = s:gsub("\t", "")
-    return tab_count, vim.api.nvim_buf_get_option(0, "tabstop")
+    return tab_count, vim.api.nvim_get_option_value("tabstop", { buf = 0 })
 end
 
 function M.get_line_length()
@@ -103,8 +103,7 @@ function M.merge_map(source, target)
     end
 end
 
----Keeping it outside the function improves performance by not
----finding the OS every time.
+---Keeping it outside the function improves performance by not finding the OS every time.
 ---@type fun(url: string)
 local open_cmd
 
@@ -138,7 +137,7 @@ end
 
 ---@param text string
 function M.copy_to_clipboard(text)
-    vim.fn.setreg(vim.g.gitblame_clipboard_register, text)
+    vim.fn.setreg(vim.g.jjblame_clipboard_register, text)
 end
 
 ---@param command string

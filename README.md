@@ -1,230 +1,189 @@
-# git-blame.nvim
+# `jj-blame.nvim`
 
-A git blame plugin for Neovim written in Lua
-
-## Table of Contents
-
-- [Installation](#installation)
-- [Requirements](#requirements)
-- [The Why](#the-why)
-- [Demo](#demo)
-- [Configuration](#configuration)
-  - [Using Lua](#using-lua)
-  - [Enabled](#enabled)
-  - [Message template](#message-template)
-  - [Date format](#date-format)
-  - [Message when not committed yet](#message-when-not-committed-yet)
-  - [Highlight group](#highlight-group)
-  - [nvim_buf_set_extmark optional parameters](#nvim_buf_set_extmark-optional-parameters)
-  - [Virtual text enabled](#virtual-text-enabled)
-  - [Ignore by Filetype](#ignore-by-filetype)
-  - [Visual delay for displaying the blame info](#visual-delay-for-displaying-the-blame-info)
-  - [Start virtual text at column](#start-virtual-text-at-column)
-  - [Better Performance](#better-performance)
-  - [Use blame commit file URLs](#use-blame-commit-file-urls)
-  - [Set displayed commit summary length](#set-displayed-commit-summary-length)
-  - [Remote forge domains](#remote-forge-domains)
-  - [Working with multiple remote names and forks](#multiple-remote-names)
-- [Commands](#commands)
-  - [Open the commit URL in browser](#open-the-commit-url-in-browser)
-  - [Enable/Disable git blame messages](#enabledisable-git-blame-messages)
-  - [Copy SHA hash](#copy-sha-hash)
-  - [Copy Commit URL](#copy-commit-url)
-  - [Open file URL in browser](#open-file-url-in-browser)
-  - [Copy file URL](#copy-file-url)
-- [Statusline integration](#statusline-integration)
-- [Changing the timeago-format language](#changing-the-timeago-format-language)
-- [Thanks To](#thanks-to)
-- [Contributors <3](#contributors-3)
-- [Support](#support)
-
+A Jujutsu blame/annotation plugin for Neovim written in Lua. Adapted from
+[`git-blame.nvim`][git-blame.nvim].
 
 ## Installation
 
-### Using [vim-plug](https://github.com/junegunn/vim-plug)
+### Using [vim-plug][vim-plug]
 
 ```vim
-Plug 'f-person/git-blame.nvim'
+Plug 'maddiemort/jj-blame.nvim'
 ```
 
 ## Requirements
 
-* Neovim >= 0.5.0
-* git
-
-## The Why
-
-There were several Vim plugins providing this functionality, but most of them
-were written in VimScript and didn't work well for me. [coc-git](https://github.com/neoclide/coc-git)
-also had option for showing blame info, it worked really well for me, I like it.
-However, recently I decided to switch to Neovim's builtin LSP instead of using CoC
-and having something running on Node.js just for git blame was not the best thing.
-
-## Demo
-
-![demo](assets/demo.png?raw=true)
+* `nvim` >= 0.5.0
+* [`jj`][jj]
 
 ## Configuration
 
 ### Using Lua
 
-You can use `setup` to configure the plugin in Lua. This is the recommended way
-if you're using Lua for your configs. Read the documentation below to learn
-more about specific options (*NOTE:* options in the `setup` function don't
-have the `gitblame_` prefix).
+You can use `setup` to configure the plugin in Lua. This is the recommended way if you're using Lua
+for your configuration. Read the documentation below to learn more about specific options.
 
-> **NOTE:** you don't have to call `setup` if you don't want to customize the
-> default behavior.
+> [!NOTE]
+> You don't have to call `setup` if you don't want to customize the default behavior.
 
 ```lua
-require('gitblame').setup {
-     --Note how the `gitblame_` prefix is omitted in `setup`
+require('jjblame').setup {
     enabled = false,
 }
 ```
 
-### Using lazy.nvim
+The following are the default options. See the [Template](#template) section for more information on
+the template.
+
 ```lua
-return {
-    "f-person/git-blame.nvim",
-    -- load the plugin at startup
-    event = "VeryLazy",
-    -- Because of the keys part, you will be lazy loading this plugin.
-    -- The plugin will only load once one of the keys is used.
-    -- If you want to load the plugin at startup, add something like event = "VeryLazy",
-    -- or lazy = false. One of both options will work.
-    opts = {
-        -- your configuration comes here
-        -- for example
-        enabled = true,  -- if you want to enable the plugin
-        message_template = " <summary> • <date> • <author> • <<sha>>", -- template for the blame message, check the Message template section for more options
-        date_format = "%m-%d-%Y %H:%M:%S", -- template for the date, check Date format section for more options
-        virtual_text_column = 1,  -- virtual text start column, check Start virtual text at column section for more options
-    },
- 
+require('jjblame').setup {
+    enabled = true,
+    template = 'jjblame_default_template()',
+    highlight_group = "Comment",
+    set_extmark_options = {},
+    display_virtual_text = true,
+    ignored_filetypes = {},
+    delay = 250,
+    virtual_text_column = nil,
+    use_blame_commit_file_urls = false,
+    schedule_event = "CursorMoved",
+    clear_event = "CursorMovedI",
+    clipboard_register = "+",
+    max_commit_description_length = 0,
+    remote_domains = {
+        ["git.sr.ht"] = "sourcehut",
+        ["dev.azure.com"] = "azure",
+        ["bitbucket.org"] = "bitbucket",
+        ["codeberg.org"] = "forgejo"
+    }
 }
 ```
 
+### Using lazy.nvim
+
+```lua
+return {
+    "maddiemort/jj-blame.nvim",
+    -- Load the plugin at startup
+    event = "VeryLazy",
+    opts = {
+        -- Your configuration goes here
+        enabled = true,
+    },
+}
+```
 
 ### Enabled
 
-Enables git-blame.nvim on Neovim startup.
-You can toggle git blame messages on/off with the `:GitBlameToggle` command.
+Enables `jj-blame.nvim` on Neovim startup. You can toggle blame messages on/off with the
+`:JJBlameToggle` command.
 
 Default: `1`
 
 ```vim
-let g:gitblame_enabled = 0
+let g:jjblame_enabled = 0
 ```
 
-### Message template
+### Template
 
-The template for the blame message that will be shown.
+The template for the blame message that will be shown. This is a [Jujutsu template
+expression][jj-templates] that will be passed verbatim to the [`jj file annotate`][jj-file-annotate]
+command.
 
-Default: `'  <author> • <date> • <summary>'`
+> [!IMPORTANT]
+> The configured template string must not contain newlines.
 
-Available options: `<author>`, `<committer>`, `<date>`, `<committer-date>`,
-`<summary>`, `<sha>`
+Default: `jjblame_default_template()`
+
+You can use any of the following template aliases in your template, because `jj-blame.nvim` passes
+them in `--config` args:
+
+```toml
+[template-aliases]
+'jjblame_default_template()' = """
+"  " ++ separate(" • ",
+   jjblame_author(),
+   jjblame_author_date(),
+   jjblame_change_id(),
+   jjblame_description(),
+)
+"""
+'jjblame_author()' = 'commit.author().name()'
+'jjblame_author_date()' = 'format_timestamp(commit.author().timestamp())'
+'jjblame_committer()' = 'commit.committer().name()'
+'jjblame_committer_date()' = 'format_timestamp(commit.committer().timestamp())'
+'jjblame_change_id()' = 'commit.change_id().short(7)'
+'jjblame_commit_id()' = 'commit.commit_id().short(7)'
+'jjblame_description()' = 'coalesce(commit.description().first_line(), "(no description set)")'
+```
+
+Example:
 
 ```vim
-let g:gitblame_message_template = '<summary> • <date> • <author>'
+let g:jjblame_message_template = =<< END
+"  " ++ separate(
+    " // ",
+    jjblame_author(),
+    jjblame_change_id(),
+    jjblame_commit_id(),
+    jjblame_description(),
+)
+END
 ```
 
-### Date format
-
-The [format](https://www.lua.org/pil/22.1.html) of the date fields.
-
-Default: `%c`
-
-Available options:
-
-```
-%r  relative date (e.g., 3 days ago)
-%a  abbreviated weekday name (e.g., Wed)
-%A  full weekday name (e.g., Wednesday)
-%b  abbreviated month name (e.g., Sep)
-%B  full month name (e.g., September)
-%c  date and time (e.g., 09/16/98 23:48:10)
-%d  day of the month (16) [01-31]
-%H  hour, using a 24-hour clock (23) [00-23]
-%I  hour, using a 12-hour clock (11) [01-12]
-%M  minute (48) [00-59]
-%m  month (09) [01-12]
-%p  either "am" or "pm" (pm)
-%S  second (10) [00-61]
-%w  weekday (3) [0-6 = Sunday-Saturday]
-%x  date (e.g., 09/16/98)
-%X  time (e.g., 23:48:10)
-%Y  full year (1998)
-%y  two-digit year (98) [00-99]
-%%  the character `%´
-```
-
-```vim
-let g:gitblame_date_format = '%r'
-```
-
-### Message when not committed yet
-
-The blame message that will be shown when the current modification hasn't
-been committed yet.
-
-Supports the same template options as `g:gitblame_message_template`.
-
-Default: `'  Not Committed Yet'`
-
-```vim
-let g:gitblame_message_when_not_committed = 'Oh please, commit this !'
-```
-
-
-### Highlight group
+### Highlight Group
 
 The highlight group for virtual text.
 
 Default: `Comment`
 
+Example:
+
 ```vim
-let g:gitblame_highlight_group = "Question"
+let g:jjblame_highlight_group = "Question"
 ```
 
-### `nvim_buf_set_extmark` optional parameters
+### `nvim_buf_set_extmark` Optional Parameters
 
-`nvim_buf_set_extmark` is the function used for setting the virtual text.
-You can view an up-to-date full list of options in the
-[Neovim documentation](https://neovim.io/doc/user/api.html#nvim_buf_set_extmark()).
+`nvim_buf_set_extmark` is the function used for setting the virtual text. You can view an up-to-date
+full list of options in the [Neovim documentation][nvim_buf_set_extmark].
 
 **Warning**: overwriting `id` and `virt_text` will break the plugin behavior.
 
+Example:
+
 ```vim
-let g:gitblame_set_extmark_options = {
+let g:jjblame_set_extmark_options = {
     \ 'priority': 7,
     \ }
 ```
 
-### Virtual text enabled
+### Virtual Text Enabled
 
-If the blame message should be displayed as virtual text.
-
-You may want to disable this if you display the blame message in statusline.
+If the blame message should be displayed as virtual text. You may want to disable this if you
+display the blame message in your statusline instead.
 
 Default: `1`
 
+Example:
+
 ```vim
-let g:gitblame_display_virtual_text = 0
+let g:jjblame_display_virtual_text = 0
 ```
 
 ### Ignore by Filetype
 
-A list of filetypes for which gitblame information will not be displayed.
+A list of filetypes for which Jujutsu blame information will not be displayed.
 
 Default: `[]`
 
+Example:
+
 ```vim
-let g:gitblame_ignored_filetypes = ['lua', 'c']
+let g:jjblame_ignored_filetypes = ['lua', 'c']
 ```
 
-### Visual delay for displaying the blame info
+### Visual Delay for Displaying the Blame Info
 
 The delay in milliseconds after which the blame info will be displayed.
 
@@ -232,72 +191,79 @@ Note that this doesn't affect the performance of the plugin.
 
 Default: `250`
 
+Example:
+
 ```vim
-let g:gitblame_delay = 1000 " 1 second
+let g:jjblame_delay = 1000 " 1 second
 ```
 
-### Start virtual text at column
+### Start Virtual Text at Column
 
-Have the blame message start at a given column instead of EOL. If the current
-line is longer than the specified column value the blame message will default
-to being displayed at EOL.
+Have the blame message start at a given column instead of EOL. If the current line is longer than
+the specified column value, the blame message will default to being displayed at EOL.
 
 Default: `v:null`
 
+Example:
+
 ```vim
-let g:gitblame_virtual_text_column = 80
+let g:jjblame_virtual_text_column = 80
 ```
 
-### Better Performance
+### Use Blame Commit File URLs
 
-If you are experiencing poor performance (e.g. in particularly large projects) you can use `CursorHold` and `CursorHoldI` instead of the default `CursorMoved` and `CursorMovedI` autocommands to limit the frequency of events being run.
-
-`g:gitblame_schedule_event` is used for scheduling events. See [CursorMoved](https://neovim.io/doc/user/autocmd.html#CursorMoved) and [CursorHold](https://neovim.io/doc/user/autocmd.html#CursorHold).
-
-Default: `CursorMoved`
-
-options: `CursorMoved`|`CursorHold` 
-
-`g:gitblame_clear_event` is used for clearing virtual text. See [CursorMovedI](https://neovim.io/doc/user/autocmd.html#CursorMovedI) and [CursorHoldI](https://neovim.io/doc/user/autocmd.html#CursorHoldI).
-
-Default: `CursorMovedI`
-
-options: `CursorMovedI`|`CursorHoldI`
-
-### Use blame commit file URLs
-
-By default the commands `GitBlameOpenFileURL` and `GitBlameCopyFileURL` open the current file at latest branch commit. If you would like to open these files at the latest blame commit (in other words, the commit marked by the blame), set this to true. For ranges, the blame selected will be the most recent blame from the range.
+By default the commands `JJBlameOpenFileURL` and `JJBlameCopyFileURL` open the current file at
+latest branch commit. If you would like to open these files at the latest blame commit (in other
+words, the commit marked by the blame), set this to true. For ranges, the blame selected will be the
+most recent blame from the range.
 
 Default: `false`
 
 ```lua
-vim.g.gitblame_use_blame_commit_file_urls = true
+vim.g.jjblame_use_blame_commit_file_urls = true
 ```
 
-### Configuring the clipboard register
+### Better Performance
 
-By default the `:GitBlameCopySHA`, `:GitBlameCopyFileURL` and `:GitBlameCopyCommitURL` commands use the `+` register. Set this value if you would like to use a different register (such as `*`).
+If you are experiencing poor performance (e.g. in particularly large projects) you can use
+`CursorHold` and `CursorHoldI` instead of the default `CursorMoved` and `CursorMovedI` autocommands
+to limit the frequency of events being run.
+
+- `g:jjblame_schedule_event` is used for scheduling events. See [`CursorMoved`][CursorMoved] and
+  [`CursorHold`][CursorHold].
+  - Default: `CursorMoved`
+  - Options: `CursorMoved`, `CursorHold` 
+- `g:jjblame_clear_event` is used for clearing virtual text. See [`CursorMovedI`][CursorMovedI] and
+  [`CursorHoldI`][CursorHoldI].
+  - Default: `CursorMovedI`
+  - Options: `CursorMovedI`, `CursorHoldI`
+
+### Configuring the Clipboard Register
+
+By default the `:JJBlameCopySHA`, `:JJBlameCopyFileURL` and `:JJBlameCopyCommitURL` commands use the
+`+` register. Set this value if you would like to use a different register (such as `*`).
 
 Default: `+`
 
 ```vim
-let g:gitblame_clipboard_register = "*"
+let g:jjblame_clipboard_register = "*"
 ```
 
-### Set displayed commit summary length
+### Set Displayed Commit Description Length
 
-The maximum length of the commit summary shown in the blame message.
-If the commit summary is longer than this value, it will be truncated.
+The maximum length of the commit description shown in the blame message, or `0` to disable the
+limit. If the commit description is longer than this value, it will be truncated.
 
-Default: `0 (full length)`
+Default: `0`
 
 ```vim
-let g:gitblame_max_commit_summary_length = 50
+let g:jjblame_max_commit_description_length = 50
 ```
 
-### Remote forge domains
+### Remote Forge Domains
 
-A map of domain names to forge software. Set this so commit and file URLs are generated correctly for your self-hosted instances.
+A map of domain names to forge software. Set this so commit and file URLs are generated correctly
+for your self-hosted instances.
 
 Currently supported software:
 
@@ -309,128 +275,119 @@ Currently supported software:
 - `bitbucket`
 
 ```lua
-vim.g.gitblame_remote_domains = {
+vim.g.jjblame_remote_domains = {
     "git.sr.ht" = "sourcehut"
 }
 ```
 
-### Multiple remote names
+### Multiple Remote Names
 
-If your project tracks multiple remote repositories you can change remote name to one you want to track.
+If your project tracks multiple remote repositories you can change remote name to one you want to
+track.
 
 Default: `origin`
 
 ```vim
-let g:gitblame_remote_name = "upstream"
+let g:jjblame_remote_name = "upstream"
 ```
 
 Tip: You can enable `.exrc` in your nvim config and set remote name per project.
 
 ## Commands
 
-### Open the commit URL in browser
+### Open the Commit URL in Browser
 
-`:GitBlameOpenCommitURL` opens the commit URL of commit under the cursor.
-Tested to work with GitHub and GitLab.
+`:JJBlameOpenCommitURL` opens the commit URL of commit under the cursor. Tested to work with GitHub
+and GitLab.
 
-### Enable/Disable git blame messages
+### Enable/Disable Jujutsu Blame Messages
 
-* `:GitBlameToggle` toggles git blame on/off,
-* `:GitBlameEnable` enables git blame messages,
-* `:GitBlameDisable` disables git blame messages.
+* `:JJBlameToggle` toggles Jujutsu blame on/off
+* `:JJBlameEnable` enables Jujutsu blame messages
+* `:JJBlameDisable` disables Jujutsu blame messages
 
-### Copy SHA hash
+### Copy Change ID
 
-`:GitBlameCopySHA` copies the SHA hash of current line's commit into
-the system's clipboard.
+`:JJBlameCopyChangeID` copies the change ID of the current line's revision into the system's
+clipboard.
+
+### Copy Commit ID
+
+`:JJBlameCopyCommitID` copies the commit ID of the current line's commit into the system's
+clipboard.
 
 ### Copy Commit URL
 
-`:GitBlameCopyCommitURL` copies the commit URL of current line's commit into
-the system clipboard.
+`:JJBlameCopyCommitURL` copies the commit URL of current line's commit into the system clipboard.
 
 ### Copy PR URL
 
-`:GitBlameCopyPRURL` copies the pull request URL associated with the commit on the current line into the system clipboard. This command requires the GitHub CLI (`gh`) to be installed and authenticated.
+`:JJBlameCopyPRURL` copies the pull request URL associated with the commit on the current line into
+the system clipboard. This command requires the [GitHub CLI][github-cli] ([`gh`][gh]) to be
+installed and authenticated.
 
-### Open file URL in browser
+### Open File URL in Browser
 
-`:GitBlameOpenFileURL` opens the file in the default browser.
+`:JJBlameOpenFileURL` opens the file in the default browser.
 
-The URL is scoped to the latest commit on the current branch and
-has a mark of the current line. (same is true for `GitBlameCopyFileURL`)
+The URL is scoped to the latest commit on the current branch and has a mark of the current line.
+(same is true for `JJBlameCopyFileURL`)
 
-### Copy file URL
+### Copy File URL
 
-`:GitBlameCopyFileURL` copies the file URL into the system clipboard.
+`:JJBlameCopyFileURL` copies the file URL into the system clipboard.
 
+## Statusline Integration
 
-## Statusline integration
-
-The plugin provides you with two functions which you can incorporate into your
-statusline of choice:
+The plugin provides you with two functions which you can incorporate into your statusline of choice:
 
 ```lua
--- Lua
-local git_blame = require('gitblame')
+local jj_blame = require('jjblame')
 
-git_blame.is_blame_text_available() -- Returns a boolean value indicating whether blame message is available
-git_blame.get_current_blame_text() --  Returns a string with blame message
+-- Returns a boolean value indicating whether a blame message is available
+jj_blame.is_blame_text_available()
+-- Returns the blame message string
+jj_blame.get_current_blame_text()
 ```
 
-Here is an example of integrating with [lualine.nvim](https://github.com/nvim-lualine/lualine.nvim):
+Here is an example of integrating with [`lualine.nvim`][lualine.nvim]:
 
-```Lua
--- Lua
-vim.g.gitblame_display_virtual_text = 0 -- Disable virtual text
-local git_blame = require('gitblame')
+```lua
+vim.g.jjblame_display_virtual_text = 0
 
-require('lualine').setup({
+local jj_blame = require('jjblame')
+require('lualine').setup {
     sections = {
-            lualine_c = {
-                { git_blame.get_current_blame_text, cond = git_blame.is_blame_text_available }
-            }
+        lualine_c = {
+            { jj_blame.get_current_blame_text, cond = jj_blame.is_blame_text_available }
+        }
     }
-})
-```
-
-## Changing the timeago-format language
-
-The plugin uses [lua-timeago](https://github.com/f-person/lua-timeago) for
-displaying commit dates in a relative time ago format. Take a look at the
-[languages](https://github.com/f-person/git-blame.nvim/tree/master/lua/lua-timeago/languages)
-directory for a list of pre-installed languages. If you wish to use a language
-that's not built into lua-timeago, you can
-[do that](https://github.com/f-person/lua-timeago#language) too;
-please consider opening a PR to lua-timeago if you choose to do so :)
-
-To set a language, call the `set_language` method:
-
-```lua
--- Lua
-require('lua-timeago').set_language(require('lua-timeago/languages/hy'))
-```
-
-```vim
-" Vimscript
-:lua require('lua-timeago').set_language(require('lua-timeago/languages/hy'))
+}
 ```
 
 ## Thanks To
 
-* [coc-git](https://github.com/neoclide/coc-git) for some parts of code.
-* [blamer.nvim](https://github.com/APZelos/blamer.nvim) for documentation inspiration.
+* [`git-blame.nvim`][git-blame.nvim] for the original Git version of this plugin, and
+  [`coc-git`][coc-git] and [`blamer.nvim`][blamer.nvim] in turn.
+* [`entropitor`][entropitor] for beginning the [conversion of this plugin][entropitor-jj-blame.nvim]
+  from Git to Jujutsu.
+* [Everyone who contributed](https://github.com/f-person/git-blame.nvim/graphs/contributors) to the
+  original plugin.
 
-## Contributors <3
-
-[![](https://contrib.rocks/image?repo=f-person/git-blame.nvim)](https://github.com/f-person/git-blame.nvim/graphs/contributors)
-
-Special kudos to [Sam Bossley](https://github.com/bossley9) for maintaining the plugin! <3
-
-Made with [contrib.rocks](https://contrib.rocks).
-
-## Support
-If you enjoy the plugin and want to support what I do
-
-
-<a href="https://www.buymeacoffee.com/fperson" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41"  width="174"></a>
+[CursorHoldI]: https://neovim.io/doc/user/autocmd.html#CursorHoldI
+[CursorHold]: https://neovim.io/doc/user/autocmd.html#CursorHold
+[CursorMovedI]: https://neovim.io/doc/user/autocmd.html#CursorMovedI
+[CursorMoved]: https://neovim.io/doc/user/autocmd.html#CursorMoved
+[blamer.nvim]: https://github.com/APZelos/blamer.nvim
+[coc-git]: https://github.com/neoclide/coc-git
+[entropitor-jj-blame.nvim]: https://github.com/entropitor/jj-blame.nvim
+[entropitor]: https://github.com/entropitor
+[gh]: https://github.com/cli/cli
+[git-blame.nvim]: https://github.com/f-person/git-blame.nvim
+[github-cli]: https://cli.github.com
+[jj-file-annotate]: https://www.jj-vcs.dev/latest/cli-reference/#jj-file-annotate
+[jj-templates]: https://www.jj-vcs.dev/latest/templates/#templates
+[jj]: https://github.com/jj-vcs/jj
+[lualine.nvim]: https://github.com/nvim-lualine/lualine.nvim
+[nvim_buf_set_extmark]: https://neovim.io/doc/user/api.html#nvim_buf_set_extmark()
+[vim-plug]: https://github.com/junegunn/vim-plug

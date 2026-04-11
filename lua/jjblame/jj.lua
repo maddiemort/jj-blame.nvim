@@ -1,21 +1,5 @@
-local utils = require("gitblame.utils")
+local utils = require("jjblame.utils")
 local M = {}
-
----@param callback fun(is_ignored: boolean)
-function M.check_is_ignored(callback)
-    local filepath = vim.api.nvim_buf_get_name(0)
-    if filepath == "" then
-        return true
-    end
-
-    return true
-
-    -- utils.start_job("git check-ignore " .. vim.fn.shellescape(filepath), {
-    --     on_exit = function(code)
-    --         callback(code ~= 1)
-    --     end,
-    -- })
-end
 
 ---@param url string
 ---@return string
@@ -25,12 +9,12 @@ local function get_http_domain(url)
 end
 
 ---@param sha string
----@param remote_url string
+---@param repo_url string
 ---@return string
 local function get_commit_path(sha, repo_url)
     local domain = get_http_domain(repo_url)
 
-    local forge = vim.g.gitblame_remote_domains[domain]
+    local forge = vim.g.jjblame_remote_domains[domain]
     if forge == "bitbucket" then
         return "/commits/" .. sha
     end
@@ -58,7 +42,7 @@ end
 ---@param remote_url string
 ---@return string
 local function get_repo_url(remote_url)
-    local remote_url = string.gsub(remote_url, "/$", "")
+    remote_url = string.gsub(remote_url, "/$", "")
 
     local domain, path = string.match(remote_url, ".*git%@(.*)%:(.*)%.git")
     if domain and path then
@@ -110,9 +94,10 @@ local function url_encode(url)
     -- only includes opening/closing square bracket for now,
     -- more can be added as needed later
     local pattern = "[][]"
-    return string.gsub(url, pattern, function(c)
+    local encoded, _ = string.gsub(url, pattern, function(c)
         return string.format("%%%02X", string.byte(c))
     end)
+    return encoded
 end
 
 ---@param remote_url string
@@ -126,7 +111,7 @@ local function get_file_url(remote_url, ref_type, ref, filepath, line1, line2)
     local repo_url = get_repo_url(remote_url)
     local domain = get_http_domain(repo_url)
 
-    local forge = vim.g.gitblame_remote_domains[domain]
+    local forge = vim.g.jjblame_remote_domains[domain]
 
     local file_path = url_encode("/blob/" .. ref .. "/" .. filepath)
     if forge == "sourcehut" then
@@ -190,7 +175,18 @@ local function get_current_branch(callback)
     if not utils.get_filepath() then
         return
     end
-    local command = utils.make_local_command([[jj --config ui.color=never log -r 'latest(ancestors(@) & bookmarks())' --no-graph -T 'self.local_bookmarks().join("\n")']])
+
+    -- TODO: Adapt this from using my personal `current_bookmark()` revset alias, which nobody else
+    -- will have.
+    local command = utils.make_local_command([[
+        jj log \\
+            --ignore-working-copy \\
+            --color=never \\
+            --no-graph \\
+            --no-pager \\
+            -r 'current_bookmark(@)' \\
+            -T 'bookmarks.join("\n")'
+    ]])
 
     utils.start_job(command, {
         on_stdout = function(url)
@@ -268,7 +264,7 @@ function M.get_remote_url(callback)
     if not utils.get_filepath() then
         return
     end
-    local remote_name = vim.g.gitblame_remote_name
+    local remote_name = vim.g.jjblame_remote_name
     if remote_name == nil then
         remote_name = "origin"
     end
@@ -293,7 +289,7 @@ function M.get_repo_root(callback)
     if not utils.get_filepath() then
         return
     end
-    local command = utils.make_local_command("jj root")
+    local command = utils.make_local_command("jj workspace root")
 
     utils.start_job(command, {
         on_stdout = function(data)
