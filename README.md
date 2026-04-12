@@ -56,7 +56,8 @@ require('jjblame').setup {
         ["dev.azure.com"] = "azure",
         ["bitbucket.org"] = "bitbucket",
         ["codeberg.org"] = "forgejo"
-    }
+    },
+    remote_name = "origin",
 }
 ```
 

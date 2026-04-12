@@ -16,6 +16,7 @@ local M = {}
 ---@field clipboard_register string? The clipboard register to use when copying commit SHAs or file URLsfunction
 ---@field max_commit_description_length number? The maximum allowable length for the displayed commit description. Defaults to 0 (no limit)
 ---@field remote_domains table<string, string>?
+---@field remote_name string?
 
 ---@type SetupOptions
 M.default_opts = {
@@ -38,7 +39,8 @@ M.default_opts = {
         ["dev.azure.com"] = "azure",
         ["bitbucket.org"] = "bitbucket",
         ["codeberg.org"] = "forgejo"
-    }
+    },
+    remote_name = "origin",
 }
 
 ---@param opts SetupOptions?
