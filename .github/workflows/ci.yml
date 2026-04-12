@@ -1,0 +1,20 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  check-changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Out Repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref || github.ref }}
+      - name: Install Lix
+        uses: samueldr/lix-gha-installer-action@d60d37cdb471f034aff80987ec588d58791988ba
+      - name: Check Changelog
+        run: nix develop -c convco check
