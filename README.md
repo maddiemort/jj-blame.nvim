@@ -40,7 +40,7 @@ require('jjblame').setup {
     enabled = true,
     template = 'jjblame_default_template()',
     virtual_text_enabled = true,
-    virtual_text_highlight = { "CursorLine", "Comment" },
+    virtual_text_highlight = "Comment",
     virtual_text_column = nil,
     set_extmark_options = {},
     ignored_filetypes = {},
@@ -151,7 +151,7 @@ let g:jjblame_virtual_text_enabled = 0
 The highlight group(s) for virtual text. If provided as a list, they will be applied in order from
 lowest to highest priority.
 
-Default: `{ 'CursorLine', 'Comment' }`
+Default: `Comment`
 
 Example:
 

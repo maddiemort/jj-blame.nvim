@@ -346,6 +346,7 @@ local function update_info_text(info_text)
                 { info_text, vim.g.jjblame_virtual_text_highlight },
             },
             virt_text_win_col = virt_text_column,
+            hl_mode = "combine",
         }
         local user_options = vim.g.jjblame_set_extmark_options or {}
 
