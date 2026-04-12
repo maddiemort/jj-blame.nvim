@@ -8,18 +8,18 @@ local function get_http_domain(url)
     return domain and domain:lower()
 end
 
----@param sha string
+---@param commit_id string
 ---@param repo_url string
 ---@return string
-local function get_commit_path(sha, repo_url)
+local function get_commit_path(commit_id, repo_url)
     local domain = get_http_domain(repo_url)
 
     local forge = vim.g.jjblame_remote_domains[domain]
     if forge == "bitbucket" then
-        return "/commits/" .. sha
+        return "/commits/" .. commit_id
     end
 
-    return "/commit/" .. sha
+    return "/commit/" .. commit_id
 end
 
 ---@param url string
@@ -101,31 +101,29 @@ local function url_encode(url)
 end
 
 ---@param remote_url string
----@param ref_type "commit"|"branch"
----@param ref string
+---@param commit_id commit_id
 ---@param filepath string
 ---@param line1 number?
 ---@param line2 number?
 ---@return string
-local function get_file_url(remote_url, ref_type, ref, filepath, line1, line2)
+local function get_file_url(remote_url, commit_id, filepath, line1, line2)
     local repo_url = get_repo_url(remote_url)
     local domain = get_http_domain(repo_url)
 
     local forge = vim.g.jjblame_remote_domains[domain]
 
-    local file_path = url_encode("/blob/" .. ref .. "/" .. filepath)
+    local file_path = url_encode("/blob/" .. commit_id .. "/" .. filepath)
     if forge == "sourcehut" then
-        file_path = url_encode("/tree/" .. ref .. "/" .. filepath)
+        file_path = url_encode("/tree/" .. commit_id .. "/" .. filepath)
     end
     if forge == "forgejo" then
-        file_path = "/src/" .. ref_type .. "/" .. ref .. "/" .. filepath
+        file_path = "/src/" .. "commit" .. "/" .. commit_id .. "/" .. filepath
     end
     if forge == "bitbucket" then
-        file_path = "/src/" .. ref .. "/" .. filepath
+        file_path = "/src/" .. commit_id .. "/" .. filepath
     end
     if forge == "azure" then
-        -- Can't use ref here if it's a commit sha
-        -- FIXME: add branch names to the URL
+        -- Can't use ref here if it's a commit ID
         file_path = "?path=%2F" .. filepath
     end
 
@@ -170,41 +168,12 @@ local function get_file_url(remote_url, ref_type, ref, filepath, line1, line2)
     end
 end
 
----@param callback fun(branch_name: string)
-local function get_current_branch(callback)
-    if not utils.get_filepath() then
-        return
-    end
-
-    -- TODO: Adapt this from using my personal `current_bookmark()` revset alias, which nobody else
-    -- will have.
-    local command = utils.make_local_command([[
-        jj log \\
-            --ignore-working-copy \\
-            --color=never \\
-            --no-graph \\
-            --no-pager \\
-            -r 'current_bookmark(@)' \\
-            -T 'bookmarks.join("\n")'
-    ]])
-
-    utils.start_job(command, {
-        on_stdout = function(url)
-            if url and url[1] then
-                callback(url[1])
-            else
-                callback("")
-            end
-        end,
-    })
-end
-
 ---@param filepath string
----@param sha string?
+---@param commit_id string
 ---@param line1 number?
 ---@param line2 number?
 ---@param callback fun(url: string)
-function M.get_file_url(filepath, sha, line1, line2, callback)
+function M.get_file_url(filepath, commit_id, line1, line2, callback)
     M.get_repo_root(function(root)
         -- if outside a repository, return the filepath
         -- so we can still copy the path or open the file
@@ -215,46 +184,37 @@ function M.get_file_url(filepath, sha, line1, line2, callback)
 
         local relative_filepath = string.sub(filepath, #root + 2)
 
-        if sha == nil then
-            get_current_branch(function(branch)
-                M.get_remote_url(function(remote_url)
-                    local url = get_file_url(remote_url, "branch", branch, relative_filepath, line1, line2)
-                    callback(url)
-                end)
-            end)
-        else
-            M.get_remote_url(function(remote_url)
-                local url = get_file_url(remote_url, "commit", sha, relative_filepath, line1, line2)
-                callback(url)
-            end)
-        end
+        M.get_remote_url(function(remote_url)
+            local url = get_file_url(remote_url, commit_id, relative_filepath, line1, line2)
+            callback(url)
+        end)
     end)
 end
 
----@param sha string
+---@param commit_id string
 ---@param remote_url string
 ---@return string
-function M.get_commit_url(sha, remote_url)
+function M.get_commit_url(commit_id, remote_url)
     local repo_url = get_repo_url(remote_url)
-    local commit_path = get_commit_path(sha, repo_url)
+    local commit_path = get_commit_path(commit_id, repo_url)
 
     return repo_url .. commit_path
 end
 
 ---@param filepath string
----@param sha string?
+---@param commit_id string
 ---@param line1 number?
 ---@param line2 number?
-function M.open_file_in_browser(filepath, sha, line1, line2)
-    M.get_file_url(filepath, sha, line1, line2, function(url)
+function M.open_file_in_browser(filepath, commit_id, line1, line2)
+    M.get_file_url(filepath, commit_id, line1, line2, function(url)
         utils.launch_url(url)
     end)
 end
 
----@param sha string
-function M.open_commit_in_browser(sha)
+---@param commit_id string
+function M.open_commit_in_browser(commit_id)
     M.get_remote_url(function(remote_url)
-        local commit_url = M.get_commit_url(sha, remote_url)
+        local commit_url = M.get_commit_url(commit_id, remote_url)
         utils.launch_url(commit_url)
     end)
 end

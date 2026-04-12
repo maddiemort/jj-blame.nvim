@@ -45,7 +45,6 @@ require('jjblame').setup {
     set_extmark_options = {},
     ignored_filetypes = {},
     delay = 250,
-    use_blame_commit_file_urls = false,
     schedule_event = "CursorMoved",
     clear_event = "CursorMovedI",
     on_update = nil,
@@ -213,19 +212,6 @@ Example:
 let g:jjblame_delay = 1000 " 1 second
 ```
 
-### Use Blame Commit File URLs
-
-By default the commands `JJBlameOpenFileURL` and `JJBlameCopyFileURL` open the current file at
-latest branch commit. If you would like to open these files at the latest blame commit (in other
-words, the commit marked by the blame), set this to true. For ranges, the blame selected will be the
-most recent blame from the range.
-
-Default: `false`
-
-```lua
-vim.g.jjblame_use_blame_commit_file_urls = true
-```
-
 ### Better Performance
 
 If you are experiencing poor performance (e.g. in particularly large projects) you can use
@@ -243,8 +229,9 @@ to limit the frequency of events being run.
 
 ### Configuring the Clipboard Register
 
-By default the `:JJBlameCopySHA`, `:JJBlameCopyFileURL` and `:JJBlameCopyCommitURL` commands use the
-`+` register. Set this value if you would like to use a different register (such as `*`).
+By default the `:JJBlameCopyCommitID`, `:JJBlameCopyChangeID`, `:JJBlameCopyFileURL` and
+`:JJBlameCopyCommitURL` commands use the `+` register. Set this value if you would like to use a
+different register (such as `*`).
 
 Default: `+`
 
@@ -331,10 +318,7 @@ installed and authenticated.
 
 ### Open File URL in Browser
 
-`:JJBlameOpenFileURL` opens the file in the default browser.
-
-The URL is scoped to the latest commit on the current branch and has a mark of the current line.
-(same is true for `JJBlameCopyFileURL`)
+`:JJBlameOpenFileURL` opens a link to the select line(s) in the current file in the default browser.
 
 ### Copy File URL
 

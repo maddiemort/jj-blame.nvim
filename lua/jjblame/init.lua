@@ -487,29 +487,30 @@ local function handle_insert_leave()
     end
 end
 
----Returns SHA for the latest commit to the current branch.
----@param callback fun(sha: string)
-local function get_latest_sha(callback)
-    utils.start_job("jj log -T 'commit_id' --no-graph -r @-", {
-        on_stdout = function(data)
-            callback(data[1])
-        end,
-    })
-end
-
----@param sha string?
----@return boolean
-local function is_valid_sha(sha)
-    local empty_sha = "0000000000000000000000000000000000000000"
-    return sha ~= nil and sha ~= "" and sha ~= empty_sha
-end
-
----Returns SHA for the current line or SHA
----for the latest commit in visual selection
----@param callback fun(sha: string)
+---Returns change ID for the current line or change ID for the latest change in visual selection
+---@param callback fun(change_id: string)
 ---@param line1 number?
 ---@param line2 number?
-M.get_sha = function(callback, line1, line2)
+M.get_change_id = function(callback, line1, line2)
+    local file_path = utils.get_filepath()
+    local line_number = line1 or utils.get_line_number()
+    local info = get_info(file_path, line_number, line2)
+
+    if info then
+        callback(info.change_id)
+    else
+        load_annotations(function()
+            local new_info = get_info(file_path, line_number, line2)
+            callback(new_info and new_info.change_id or "")
+        end)
+    end
+end
+
+---Returns commit ID for the current line or commit ID for the latest commit in visual selection
+---@param callback fun(commit_id: string)
+---@param line1 number?
+---@param line2 number?
+M.get_commit_id = function(callback, line1, line2)
     local file_path = utils.get_filepath()
     local line_number = line1 or utils.get_line_number()
     local info = get_info(file_path, line_number, line2)
@@ -525,12 +526,8 @@ M.get_sha = function(callback, line1, line2)
 end
 
 M.open_commit_url = function()
-    M.get_sha(function(sha)
-        if is_valid_sha(sha) then
-            jj.open_commit_in_browser(sha)
-        else
-            utils.log("Unable to open commit URL as SHA is empty")
-        end
+    M.get_commit_id(function(commit_id)
+        jj.open_commit_in_browser(commit_id)
     end)
 end
 
@@ -546,16 +543,12 @@ M.open_file_url = function(args)
         return
     end
 
-    ---@param sha string
-    local callback = function(sha)
-        jj.open_file_in_browser(file_path, sha, args.line1, args.line2)
+    ---@param commit_id commit_id
+    local callback = function(commit_id)
+        jj.open_file_in_browser(file_path, commit_id, args.line1, args.line2)
     end
 
-    if vim.g.jjblame_use_blame_commit_file_urls then
-        M.get_sha(callback, args.line1, args.line2)
-    else
-        get_latest_sha(callback)
-    end
+    M.get_commit_id(callback, args.line1, args.line2)
 end
 
 ---@return string?
@@ -568,13 +561,15 @@ M.is_blame_text_available = function()
     return current_info_text ~= nil and current_info_text ~= ""
 end
 
-M.copy_sha_to_clipboard = function()
-    M.get_sha(function(sha)
-        if is_valid_sha(sha) then
-            utils.copy_to_clipboard(sha)
-        else
-            utils.log("Unable to copy SHA")
-        end
+M.copy_change_id_to_clipboard = function()
+    M.get_change_id(function(change_id)
+        utils.copy_to_clipboard(change_id)
+    end)
+end
+
+M.copy_commit_id_to_clipboard = function()
+    M.get_commit_id(function(commit_id)
+        utils.copy_to_clipboard(commit_id)
     end)
 end
 
@@ -585,55 +580,43 @@ M.copy_file_url_to_clipboard = function(args)
         return
     end
 
-    ---@param sha string
-    local callback = function(sha)
-        jj.get_file_url(file_path, sha, args.line1, args.line2, function(url)
+    ---@param commit_id commit_id
+    local callback = function(commit_id)
+        jj.get_file_url(file_path, commit_id, args.line1, args.line2, function(url)
             utils.copy_to_clipboard(url)
         end)
     end
 
-    if vim.g.jjblame_use_blame_commit_file_urls then
-        M.get_sha(callback, args.line1, args.line2)
-    else
-        get_latest_sha(callback)
-    end
+    M.get_commit_id(callback, args.line1, args.line2)
 end
 
 M.copy_commit_url_to_clipboard = function()
-    M.get_sha(function(sha)
-        if is_valid_sha(sha) then
-            jj.get_remote_url(function(remote_url)
-                local commit_url = jj.get_commit_url(sha, remote_url)
-                utils.copy_to_clipboard(commit_url)
-            end)
-        else
-            utils.log("Unable to copy SHA")
-        end
+    M.get_commit_id(function(commit_id)
+        jj.get_remote_url(function(remote_url)
+            local commit_url = jj.get_commit_url(commit_id, remote_url)
+            utils.copy_to_clipboard(commit_url)
+        end)
     end)
 end
 
 M.copy_pr_url_to_clipboard = function()
-    M.get_sha(function(sha)
-        if is_valid_sha(sha) then
-            local cmd = string.format('gh pr list --search "%s" --state merged --limit 1 --json url -q ".[0].url"', sha)
-            utils.start_job(cmd, {
-                on_stdout = function(data)
-                    if data and data[1] and data[1] ~= "" then
-                        utils.copy_to_clipboard(data[1])
-                        utils.log("PR URL copied to clipboard")
-                    else
-                        utils.log("No PR found for commit " .. sha)
-                    end
-                end,
-                on_exit = function(code)
-                    if code ~= 0 then
-                        utils.log("Failed to find PR (is gh CLI installed?)")
-                    end
+    M.get_commit_id(function(commit_id)
+        local cmd = string.format('gh pr list --search "%s" --state merged --limit 1 --json url -q ".[0].url"', commit_id)
+        utils.start_job(cmd, {
+            on_stdout = function(data)
+                if data and data[1] and data[1] ~= "" then
+                    utils.copy_to_clipboard(data[1])
+                    utils.log("PR URL copied to clipboard")
+                else
+                    utils.log("No PR found for commit " .. commit_id)
                 end
-            })
-        else
-            utils.log("Unable to get commit SHA")
-        end
+            end,
+            on_exit = function(code)
+                if code ~= 0 then
+                    utils.log("Failed to find PR (is gh CLI installed?)")
+                end
+            end
+        })
     end)
 end
 
@@ -775,7 +758,8 @@ local create_cmds = function()
     command("JJBlameDisable", M.disable, {})
     command("JJBlameOpenCommitURL", M.open_commit_url, {})
     command("JJBlameOpenFileURL", M.open_file_url, { range = true })
-    command("JJBlameCopySHA", M.copy_sha_to_clipboard, {})
+    command("JJBlameCopyChangeID", M.copy_change_id_to_clipboard, {})
+    command("JJBlameCopyCommitID", M.copy_commit_id_to_clipboard, {})
     command("JJBlameCopyCommitURL", M.copy_commit_url_to_clipboard, {})
     command("JJBlameCopyFileURL", M.copy_file_url_to_clipboard, { range = true })
     command("JJBlameCopyPRURL", M.copy_pr_url_to_clipboard, {})

@@ -9,12 +9,11 @@ local M = {}
 ---@field set_extmark_options table? @see vim.api.nvim_buf_set_extmark() to check what you can pass here
 ---@field ignored_filetypes string[]?
 ---@field delay number? Visual delay for displaying virtual text
----@field use_blame_commit_file_urls boolean? Use the latest blame commit instead of the latest branch commit for file urls.
 ---@field schedule_event string?
 ---@field clear_event string?
 ---@field on_update function? Callback when the info text is updated
----@field clipboard_register string? The clipboard register to use when copying commit SHAs or file URLsfunction
----@field max_commit_description_length number? The maximum allowable length for the displayed commit description. Defaults to 0 (no limit)
+---@field clipboard_register string? The clipboard register to use when copying commit/change IDs or file URLs
+---@field max_commit_description_length number? The maximum allowable length for the displayed commit description; defaults to 0 (no limit)
 ---@field remote_domains table<string, string>?
 ---@field remote_name string?
 
@@ -28,7 +27,6 @@ M.default_opts = {
     set_extmark_options = {},
     ignored_filetypes = {},
     delay = 250,
-    use_blame_commit_file_urls = false,
     schedule_event = "CursorMoved",
     clear_event = "CursorMovedI",
     on_update = nil,
