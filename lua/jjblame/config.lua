@@ -1,18 +1,36 @@
 local M = {}
 
+---@class SetupOptions
+---@field enabled boolean?
+---@field template string?
+---@field virtual_text_enabled boolean?
+---@field virtual_text_highlight (string|string[])? The highlight group or list of highlight groups (lowest to highest priority) to use for the virtual text
+---@field virtual_text_column number? The column on which to start displaying virtual text
+---@field set_extmark_options table? @see vim.api.nvim_buf_set_extmark() to check what you can pass here
+---@field ignored_filetypes string[]?
+---@field delay number? Visual delay for displaying virtual text
+---@field use_blame_commit_file_urls boolean? Use the latest blame commit instead of the latest branch commit for file urls.
+---@field schedule_event string?
+---@field clear_event string?
+---@field on_update function? Callback when the info text is updated
+---@field clipboard_register string? The clipboard register to use when copying commit SHAs or file URLsfunction
+---@field max_commit_description_length number? The maximum allowable length for the displayed commit description. Defaults to 0 (no limit)
+---@field remote_domains table<string, string>?
+
 ---@type SetupOptions
 M.default_opts = {
     enabled = true,
     template = 'jjblame_default_template()',
-    highlight_group = "Comment",
+    virtual_text_enabled = true,
+    virtual_text_highlight = { "CursorLine", "Comment" },
+    virtual_text_column = nil,
     set_extmark_options = {},
-    display_virtual_text = true,
     ignored_filetypes = {},
     delay = 250,
-    virtual_text_column = nil,
     use_blame_commit_file_urls = false,
     schedule_event = "CursorMoved",
     clear_event = "CursorMovedI",
+    on_update = nil,
     clipboard_register = "+",
     max_commit_description_length = 0,
     remote_domains = {

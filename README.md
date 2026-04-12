@@ -5,7 +5,7 @@ A Jujutsu blame/annotation plugin for Neovim written in Lua. Adapted from
 
 ## Installation
 
-### Using [vim-plug][vim-plug]
+### Using [`vim-plug`][vim-plug]
 
 ```vim
 Plug 'maddiemort/jj-blame.nvim'
@@ -39,15 +39,16 @@ the template.
 require('jjblame').setup {
     enabled = true,
     template = 'jjblame_default_template()',
-    highlight_group = "Comment",
+    virtual_text_enabled = true,
+    virtual_text_highlight = { "CursorLine", "Comment" },
+    virtual_text_column = nil,
     set_extmark_options = {},
-    display_virtual_text = true,
     ignored_filetypes = {},
     delay = 250,
-    virtual_text_column = nil,
     use_blame_commit_file_urls = false,
     schedule_event = "CursorMoved",
     clear_event = "CursorMovedI",
+    on_update = nil,
     clipboard_register = "+",
     max_commit_description_length = 0,
     remote_domains = {
@@ -59,7 +60,7 @@ require('jjblame').setup {
 }
 ```
 
-### Using lazy.nvim
+### Using `lazy.nvim`
 
 ```lua
 return {
@@ -131,16 +132,43 @@ let g:jjblame_message_template = =<< END
 END
 ```
 
-### Highlight Group
+### Virtual Text Enabled
 
-The highlight group for virtual text.
+If the blame message should be displayed as virtual text. You may want to disable this if you
+display the blame message in your statusline instead.
 
-Default: `Comment`
+Default: `1`
 
 Example:
 
 ```vim
-let g:jjblame_highlight_group = "Question"
+let g:jjblame_virtual_text_enabled = 0
+```
+
+### Virtual Text Highlight Group
+
+The highlight group(s) for virtual text. If provided as a list, they will be applied in order from
+lowest to highest priority.
+
+Default: `{ 'CursorLine', 'Comment' }`
+
+Example:
+
+```vim
+let g:jjblame_virtual_text_highlight = "Question"
+```
+
+### Start Virtual Text at Column
+
+Have the blame message start at a given column instead of EOL. If the current line is longer than
+the specified column value, the blame message will default to being displayed at EOL.
+
+Default: `v:null`
+
+Example:
+
+```vim
+let g:jjblame_virtual_text_column = 80
 ```
 
 ### `nvim_buf_set_extmark` Optional Parameters
@@ -156,19 +184,6 @@ Example:
 let g:jjblame_set_extmark_options = {
     \ 'priority': 7,
     \ }
-```
-
-### Virtual Text Enabled
-
-If the blame message should be displayed as virtual text. You may want to disable this if you
-display the blame message in your statusline instead.
-
-Default: `1`
-
-Example:
-
-```vim
-let g:jjblame_display_virtual_text = 0
 ```
 
 ### Ignore by Filetype
@@ -195,19 +210,6 @@ Example:
 
 ```vim
 let g:jjblame_delay = 1000 " 1 second
-```
-
-### Start Virtual Text at Column
-
-Have the blame message start at a given column instead of EOL. If the current line is longer than
-the specified column value, the blame message will default to being displayed at EOL.
-
-Default: `v:null`
-
-Example:
-
-```vim
-let g:jjblame_virtual_text_column = 80
 ```
 
 ### Use Blame Commit File URLs
@@ -353,7 +355,7 @@ jj_blame.get_current_blame_text()
 Here is an example of integrating with [`lualine.nvim`][lualine.nvim]:
 
 ```lua
-vim.g.jjblame_display_virtual_text = 0
+vim.g.jjblame_virtual_text_enabled = 0
 
 local jj_blame = require('jjblame')
 require('lualine').setup {

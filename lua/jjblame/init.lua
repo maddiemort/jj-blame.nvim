@@ -331,30 +331,37 @@ local function update_info_text(info_text)
 
     current_info_text = info_text
 
-    if vim.g.jjblame_display_virtual_text == false or vim.g.jjblame_display_virtual_text == 0 then
-        return
+    local virt_text_disabled = vim.g.jjblame_virtual_text_enabled == false
+        or vim.g.jjblame_virtual_text_enabled == 0
+
+    if not virt_text_disabled then
+        local virt_text_column = nil
+        if vim.g.jjblame_virtual_text_column and utils.get_line_length() < vim.g.jjblame_virtual_text_column then
+            virt_text_column = vim.g.jjblame_virtual_text_column
+        end
+
+        local options = {
+            id = 1,
+            virt_text = {
+                { info_text, vim.g.jjblame_virtual_text_highlight },
+            },
+            virt_text_win_col = virt_text_column,
+        }
+        local user_options = vim.g.jjblame_set_extmark_options or {}
+
+        if type(user_options) == "table" then
+            utils.merge_map(user_options, options)
+        elseif user_options then
+            utils.log("jjblame_set_extmark_options should be a table")
+        end
+
+        local line = utils.get_line_number()
+        vim.api.nvim_buf_set_extmark(0, NAMESPACE_ID, line - 1, 0, options)
     end
 
-    local virt_text_column = nil
-    if vim.g.jjblame_virtual_text_column and utils.get_line_length() < vim.g.jjblame_virtual_text_column then
-        virt_text_column = vim.g.jjblame_virtual_text_column
+    if vim.g.jjblame_on_update then
+        vim.g.jjblame_on_update()
     end
-
-    local options = {
-        id = 1,
-        virt_text = { { info_text, vim.g.jjblame_highlight_group } },
-        virt_text_win_col = virt_text_column,
-    }
-    local user_options = vim.g.jjblame_set_extmark_options or {}
-
-    if type(user_options) == "table" then
-        utils.merge_map(user_options, options)
-    elseif user_options then
-        utils.log("jjblame_set_extmark_options should be a table")
-    end
-
-    local line = utils.get_line_number()
-    vim.api.nvim_buf_set_extmark(0, NAMESPACE_ID, line - 1, 0, options)
 end
 
 ---@class PositionInfo
@@ -771,22 +778,6 @@ local create_cmds = function()
     command("JJBlameCopyFileURL", M.copy_file_url_to_clipboard, { range = true })
     command("JJBlameCopyPRURL", M.copy_pr_url_to_clipboard, {})
 end
-
----@class SetupOptions
----@field enabled boolean?
----@field template string?
----@field highlight_group string?
----@field set_extmark_options table? @see vim.api.nvim_buf_set_extmark() to check what you can pass here
----@field display_virtual_text boolean?
----@field ignored_filetypes string[]?
----@field delay number? Visual delay for displaying virtual text
----@field virtual_text_column number? The column on which to start displaying virtual text
----@field use_blame_commit_file_urls boolean? Use the latest blame commit instead of the latest branch commit for file urls.
----@field schedule_event string?
----@field clear_event string?
----@field clipboard_register string? The clipboard register to use when copying commit SHAs or file URLs
----@field max_commit_description_length number? The maximum allowable length for the displayed commit description. Defaults to 0 (no limit)
----@field remote_domains table<string, string>?
 
 ---@param opts SetupOptions?
 M.setup = function(opts)
