@@ -57,7 +57,7 @@ local files_data = {}
 ---@type boolean
 local need_update_after_horizontal_move = false
 
----@type string
+---@type string?
 local current_info_text
 
 local function clear_virtual_text()
@@ -328,6 +328,7 @@ local function update_info_text(info_text)
     if not info_text then
         return
     end
+
     current_info_text = info_text
 
     if vim.g.jjblame_display_virtual_text == false or vim.g.jjblame_display_virtual_text == 0 then
@@ -376,6 +377,7 @@ end
 
 local function show_info()
     if not vim.g.jjblame_enabled then
+        current_info_text = nil
         return
     end
 
@@ -385,6 +387,7 @@ local function show_info()
     local line = position_info.line
 
     if not file_path or not line then
+        current_info_text = nil
         return
     end
 
@@ -401,8 +404,8 @@ local function show_info()
     end
 
     local info = get_info(file_path, line)
-    get_info_text(info, function(blame_text)
-        update_info_text(blame_text)
+    get_info_text(info, function(info_text)
+        update_info_text(info_text)
     end)
 end
 
@@ -547,12 +550,14 @@ M.open_file_url = function(args)
     end
 end
 
+---@return string?
 M.get_current_blame_text = function()
     return current_info_text
 end
 
+---@return boolean
 M.is_blame_text_available = function()
-    return current_info_text and current_info_text ~= ""
+    return current_info_text ~= nil and current_info_text ~= ""
 end
 
 M.copy_sha_to_clipboard = function()
@@ -733,7 +738,7 @@ M.disable = function(force)
         line = -1,
         is_on_same_line = false,
     }
-    current_info_text = ""
+    current_info_text = nil
 end
 
 M.enable = function()
