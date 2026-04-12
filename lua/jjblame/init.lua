@@ -756,6 +756,7 @@ M.enable = function()
 
     vim.g.jjblame_enabled = true
     set_autocmds()
+    show_info()
 end
 
 M.toggle = function()
