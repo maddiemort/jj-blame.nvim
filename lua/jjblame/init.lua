@@ -226,10 +226,7 @@ local function load_annotations(callback)
                 callback()
             end
         end,
-        on_exit = function(code)
-            if code ~= 0 then
-                utils.log("`jj file annotate` exited with code " .. tostring(code))
-            end
+        on_exit = function(_)
             files_data_loading[file_path] = nil
         end,
     })
