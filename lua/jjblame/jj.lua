@@ -273,8 +273,8 @@ function M.get_remote_url(callback)
     utils.start_job(remote_url_command, {
         on_stdout = function(lines)
             for _, line in ipairs(lines) do
-                if line:match("^ "..remote_name.." ") then
-                    local url = line:gsub("^ "..remote_name.." ", "")
+                if line:match("^" .. remote_name .. " ") then
+                    local url = line:gsub("^" .. remote_name .. " ", "")
                     callback(url)
                     return
                 end
