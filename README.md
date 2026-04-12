@@ -374,12 +374,29 @@ require('lualine').setup {
 * [Everyone who contributed](https://github.com/f-person/git-blame.nvim/graphs/contributors) to the
   original plugin.
 
+## Development
+
+### Cutting a Release
+
+This project uses [Conventional Commits][conventional-commits], and [`convco`][convco] is included
+in the Nix devShell to assist with this.
+
+The overall list of things that has to happen for each release is as follows:
+
+- The commit that changes the version should use the message `release: v<version>`.
+- That commit should include the updated `CHANGELOG.md`, generated with `convco changelog -u
+  $(convco version --bump) > CHANGELOG.md`.
+- That commit should be tagged with `v<version>`.
+- The commit should be pushed to `main`, and the tag pushed as well.
+
 [CursorHoldI]: https://neovim.io/doc/user/autocmd.html#CursorHoldI
 [CursorHold]: https://neovim.io/doc/user/autocmd.html#CursorHold
 [CursorMovedI]: https://neovim.io/doc/user/autocmd.html#CursorMovedI
 [CursorMoved]: https://neovim.io/doc/user/autocmd.html#CursorMoved
 [blamer.nvim]: https://github.com/APZelos/blamer.nvim
 [coc-git]: https://github.com/neoclide/coc-git
+[convco]: https://github.com/convco/convco
+[conventional-commits]: https://www.conventionalcommits.org/en/v1.0.0/
 [entropitor-jj-blame.nvim]: https://github.com/entropitor/jj-blame.nvim
 [entropitor]: https://github.com/entropitor
 [gh]: https://github.com/cli/cli
