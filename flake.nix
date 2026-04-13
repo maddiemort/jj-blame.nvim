@@ -7,6 +7,7 @@
   };
 
   outputs = {
+    self,
     nixpkgs,
     flake-utils,
     ...
@@ -29,6 +30,18 @@
     eachSystem supportedSystems (system: let
       pkgs = pkgsFor system;
     in {
+      packages = rec {
+        default = jj-blame-nvim;
+        jj-blame-nvim = let
+          rev = self.shortRev or self.dirtyShortRev or "0000000";
+        in
+          pkgs.vimUtils.buildVimPlugin {
+            pname = "jj-blame.nvim";
+            version = "0.1.1-dev.${rev}";
+            src = pkgs.lib.cleanSource ./.;
+          };
+      };
+
       devShells.default = pkgs.mkShell {
         packages = with pkgs; [
           alejandra
