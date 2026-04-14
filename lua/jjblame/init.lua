@@ -35,15 +35,6 @@ local last_position = {
     is_on_same_line = false,
 }
 
----@type table<change_id, ChangeInfo>
-local changes = {}
-
----@class ChangeInfo
----@field change_id string
----@field commit_id string
----@field committer_timestamp number
----@field formatted string
-
 ---@type table<file_path, boolean>
 local files_data_loading = {}
 
@@ -51,8 +42,14 @@ local files_data_loading = {}
 local files_data = {}
 
 ---@class FileInfo
----@field lines table<number, change_id>
+---@field lines table<number, ChangeInfo>
 ---@field jj_repo_path string?
+
+---@class ChangeInfo
+---@field change_id string
+---@field commit_id string
+---@field committer_timestamp number
+---@field formatted string
 
 ---@type boolean
 local need_update_after_horizontal_move = false
@@ -88,7 +85,7 @@ local function debounce(func, delay)
 end
 
 ---Process the raw output of a `jj file annotate` command (`annotation_lines`) for the file at path
----`file_path`, and update both `changes` and `files_info` with data parsed from the output.
+---`file_path`, and update and `files_info` with data parsed from the output.
 ---
 ---@param file_path file_path
 ---@param annotation_lines string[]
@@ -96,7 +93,7 @@ local function process_annotations(file_path, annotation_lines)
     ---@type table<change_id, ChangeInfo>
     local seen_changes = {}
 
-    ---@type table<number, change_id>
+    ---@type table<number, ChangeInfo>
     local lines = {}
 
     ---@type number?
@@ -109,10 +106,10 @@ local function process_annotations(file_path, annotation_lines)
         elseif current_line then
             if line:match("^change_id ") then
                 local change_id = line:gsub("^change_id ", "")
-                -- Record the change ID for this line.
-                lines[current_line] = change_id
                 if seen_changes[change_id] then
-                    -- We already have the info for this change, so we'll skip processing lines
+                    -- Put the existing info we have for this change into the entry for this line.
+                    lines[current_line] = seen_changes[change_id]
+                    -- Since we already have the info for this change, we'll skip processing lines
                     -- until we see the next line number.
                     current_line = nil
                 else
@@ -124,30 +121,25 @@ local function process_annotations(file_path, annotation_lines)
                         committer_timestamp = 0,
                         formatted = "",
                     }
+                    -- Put it into the entry for this line too.
+                    lines[current_line] = seen_changes[change_id]
                 end
             elseif line:match("^commit_id ") then
                 -- We have a current_line, so we need to read the info for this change.
-                local change_id = lines[current_line]
-                seen_changes[change_id].commit_id = line:gsub("^commit_id ", "")
+                lines[current_line].commit_id = line:gsub("^commit_id ", "")
             elseif line:match("^committer_timestamp ") then
                 -- We have a current_line, so we need to read the info for this change.
                 local timestamp_str = line:gsub("^committer_timestamp ", "")
                 local timestamp = tonumber(timestamp_str)
                 if timestamp then
-                    local change_id = lines[current_line]
-                    seen_changes[change_id].committer_timestamp = timestamp
+                    lines[current_line].committer_timestamp = timestamp
                 end
             elseif line:match("^formatted ") then
                 -- We have a current_line, so we need to read the info for this change.
-                local change_id = lines[current_line]
-                seen_changes[change_id].formatted = line:gsub("^formatted ", "")
+                lines[current_line].formatted = line:gsub("^formatted ", "")
             end
         end
     end
-
-    -- Update the main table of changes, replacing the old or nonexistent info for any change IDs
-    -- we saw in this annotation output with the newly parsed info.
-    changes = vim.tbl_deep_extend("force", changes, seen_changes)
 
     -- Update the data for this file (or create a new one if it doesn't exist).
     local file_data = files_data[file_path]
@@ -241,12 +233,7 @@ local function get_line_info(file_path, line_number)
         return nil
     end
 
-    local change_id = file_data.lines[line_number]
-    if not change_id then
-        return nil
-    end
-
-    return changes[change_id]
+    return file_data.lines[line_number]
 end
 
 ---@param file_path file_path
@@ -262,9 +249,9 @@ local function get_line_range_info(file_path, first_line, last_line)
     local range_info = {}
 
     for line_number=first_line,last_line do
-        local change_id = files_data[file_path].lines[line_number]
-        if change_id and changes[change_id] then
-            range_info[line_number] = changes[change_id]
+        local change = files_data[file_path].lines[line_number]
+        if change then
+            range_info[line_number] = change
         end
     end
 
@@ -437,18 +424,12 @@ local function schedule_show_info_display()
 end
 
 local function cleanup_file_data()
-    -- TODO: Consider tracking the files that use each entry in changes, remove this file from all
-    -- of those, and then remove the ones that were only referenced by this file.
     local file_path = vim.api.nvim_buf_get_name(0)
     files_data[file_path] = nil
 end
 
 local function clear_files_data()
     files_data = {}
-end
-
-local function clear_changes()
-    changes = {}
 end
 
 local function handle_buf_enter()
@@ -720,7 +701,6 @@ M.disable = function(force)
     pcall(vim.api.nvim_del_augroup_by_name, "jjblame")
     clear_all_extmarks()
     clear_files_data()
-    clear_changes()
     last_position = {
         file_path = nil,
         line = -1,
