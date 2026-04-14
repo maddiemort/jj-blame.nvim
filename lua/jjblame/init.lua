@@ -307,18 +307,19 @@ end
 ---
 ---@param info_text string?
 local function update_info_text(info_text)
-    clear_virtual_text()
+    current_info_text = info_text
 
     if not info_text then
+        clear_virtual_text()
         return
     end
-
-    current_info_text = info_text
 
     local virt_text_disabled = vim.g.jjblame_virtual_text_enabled == false
         or vim.g.jjblame_virtual_text_enabled == 0
 
-    if not virt_text_disabled then
+    if virt_text_disabled then
+        clear_virtual_text()
+    else
         local virt_text_column = nil
         if vim.g.jjblame_virtual_text_column and utils.get_line_length() < vim.g.jjblame_virtual_text_column then
             virt_text_column = vim.g.jjblame_virtual_text_column
@@ -369,7 +370,7 @@ end
 
 local function show_info()
     if not vim.g.jjblame_enabled then
-        current_info_text = nil
+        update_info_text(nil)
         return
     end
 
@@ -379,7 +380,7 @@ local function show_info()
     local line = position_info.line
 
     if not file_path or not line then
-        current_info_text = nil
+        update_info_text(nil)
         return
     end
 
@@ -415,7 +416,6 @@ local function schedule_show_info_display()
     if position_info.is_on_same_line then
         show_info()
     else
-        clear_virtual_text()
         show_info()
     end
 
@@ -649,7 +649,7 @@ end
 local function maybe_clear_virtual_text_and_schedule_info_display()
     local position_info = get_position_info()
 
-    if not position_info.is_on_same_line and not need_update_after_horizontal_move then
+    if not position_info.is_on_same_line and not need_update_after_horizontal_move and vim.g.jjblame_delay ~= 0 then
         clear_virtual_text()
     end
 
@@ -706,7 +706,7 @@ M.disable = function(force)
         line = -1,
         is_on_same_line = false,
     }
-    current_info_text = nil
+    update_info_text(nil)
 end
 
 M.enable = function()
