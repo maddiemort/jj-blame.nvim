@@ -121,7 +121,7 @@ them in `--config` args:
 Example:
 
 ```vim
-let g:jjblame_message_template = =<< END
+let g:jjblame_template = =<< END
 "  " ++ separate(
     " // ",
     jjblame_author(),
