@@ -103,10 +103,10 @@ them in `--config` args:
 [template-aliases]
 'jjblame_default_template()' = """
 "  " ++ separate(" • ",
-   jjblame_author(),
-   jjblame_author_date(),
-   jjblame_change_id(),
-   jjblame_description(),
+    jjblame_author(),
+    jjblame_author_date(),
+    jjblame_change_id(),
+    jjblame_description(),
 )
 """
 'jjblame_author()' = 'commit.author().name()'
